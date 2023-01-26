@@ -42,5 +42,14 @@
         path: /var/lib/haproxy/stats
         state: directory
 
-    - name: key sdc
-      shell: dd if=/dev/urandom of=/root/secret_sdc.key bs=1024 count=2
+    - name: Go to the folder
+      command: ls chdir=/opt/haproxy-2.7.1
+
+    - name: make clean
+      shell: make clean
+      register: psk
+
+    - name: compilation
+      shell: make -j TARGET=linux-glibc USE_SYSTEMD=1 USE_PCRE=1 USE_OPENSSL=1 USE_THREAD=1
+      register: psk
+    - debug: var=out.stdout_lines
