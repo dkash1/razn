@@ -1,0 +1,46 @@
+- hosts: ha
+  become: yes
+  tasks:
+    - name: Install programm
+      yum:
+        name: "{{ packages }}"
+      vars:
+        packages:
+        - gcc
+        - openssl-devel
+        - readline-devel
+        - systemd-devel
+        - make
+        - pcre-devel
+        - tar
+        - libselinux-python3
+
+    - name: get haproxy
+      get_url:
+        url: http://haproxy.org/download/2.7/src/haproxy-2.7.1.tar.gz
+        dest: /opt/
+        mode: '0440'
+
+    - name: unpack haproxy
+      unarchive:
+        src: '/opt/haproxy-2.7.1.tar.gz'
+        dest: /opt/
+        remote_src: yes
+
+    - name: Creates directory /etc/haproxy
+      file:
+        path: /etc/haproxy
+        state: directory
+
+    - name: Creates directory /var/lib/haproxy
+      file:
+        path: /var/lib/haproxy
+        state: directory
+
+    - name: Creates directory /var/lib/haproxy/stats
+      file:
+        path: /var/lib/haproxy/stats
+        state: directory
+
+    - name: key sdc
+      shell: dd if=/dev/urandom of=/root/secret_sdc.key bs=1024 count=2
