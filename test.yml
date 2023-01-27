@@ -1,0 +1,26 @@
+- hosts: ha
+  become: yes
+  tasks:
+  - name: sborka
+    shell: mkdir /root/test/
+
+  - name: create a text file
+    ansible.builtin.copy:
+      dest: /root/haproxy.cfg
+      content: |
+        [Unit]
+        Description=HAProxy Load Balancer
+        After=syslog.target network.target pcsd.service
+        Before=batch-master.service batch-auth_server.service
+ 
+        [Service]
+        Type=forking
+        ExecStart=/usr/sbin/haproxy -f /etc/haproxy/haproxy_ccscheduler.cfg
+        KillMode=mixed
+        Restart=always
+        RestartSec=10s
+        LimitNOFILE=1000000
+        LimitNPROC=1000000
+
+        [Install]
+        WantedBy=multi-user.target

@@ -14,6 +14,7 @@
         - pcre-devel
         - tar
         - libselinux-python3
+        - htop
 
     - name: get haproxy
       get_url:
@@ -55,4 +56,93 @@
                 useradd -r haproxy
                   touch /usr/lib/systemd/system/haproxy.service
                     touch /etc/haproxy/haproxy.cfg
-                    
+
+    - name: create haproxy.service
+      ansible.builtin.copy:
+        dest: /usr/lib/systemd/system/haproxy.service
+        content: |
+          [Unit]
+          Description=HAProxy Load Balancer
+          After=syslog.target network.target pcsd.service
+          Before=batch-master.service batch-auth_server.service
+ 
+          [Service]
+          Type=forking
+          ExecStart=/usr/sbin/haproxy -f /etc/haproxy/haproxy.cfg
+          KillMode=mixed
+          Restart=always
+          RestartSec=10s
+          LimitNOFILE=1000000
+          LimitNPROC=1000000
+
+          [Install]
+          WantedBy=multi-user.target
+
+    - name: create haproxy.cfg
+      ansible.builtin.copy:
+        dest: /etc/haproxy/haproxy.cfg
+        content: |
+          global
+          log /dev/log local0
+          log /dev/log local1 notice
+          maxconn 4096
+          tune.ssl.default-dh-param 2048
+          user haproxy
+          group haproxy
+          daemon
+
+
+          defaults
+          log global
+          mode  http
+          # option httplog
+          retries 3
+          option redispatch
+          option dontlognull
+          maxconn 2000
+          timeout connect 5000
+          timeout client 50000
+          timeout server 50000
+          default-server init-addr last,libc,none
+
+          frontend stats
+          bind *:8888
+          stats enable
+          stats uri /stats
+          stats refresh 30s
+          stats auth admin:admin
+
+          frontend out
+          mode tcp
+          bind :80
+          default_backend thelive
+
+          frontend in
+          mode tcp
+          bind :8080
+          default_backend stat
+
+          backend thelive
+          mode tcp
+          server out1 192.168.57.244:9000 check
+
+          backend stat
+          mode tcp
+          server in1 192.168.5.88:80 check
+
+
+          #listen AnyName
+          #        bind *:80
+          #        mode tcp
+          #        server server1 192.168.57.244:9000
+
+    - name: service-start1
+      shell: |
+        setsebool -P haproxy_connect_any 1
+          systemctl daemon-reload
+    
+    - name: systemctl start haproxy.service
+      shell: |
+        systemctl enable haproxy.service
+        systemctl is-enabled haproxy.service
+        systemctl start haproxy.service
