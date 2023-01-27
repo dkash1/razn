@@ -46,3 +46,13 @@
       shell: |
         cd /opt/haproxy-2.7.1
          make -j TARGET=linux-glibc USE_SYSTEMD=1 USE_PCRE=1 USE_OPENSSL=1 USE_THREAD=1
+          make install 
+
+    - name: copy dir
+      shell: |
+            cp -r /opt/haproxy-2.7.1/examples/errorfiles /etc/haproxy/errorfiles
+               ln -s /usr/local/sbin/haproxy /usr/sbin/haproxy 
+                useradd -r haproxy
+                  touch /usr/lib/systemd/system/haproxy.service
+                    touch /etc/haproxy/haproxy.cfg
+                    
