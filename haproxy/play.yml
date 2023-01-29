@@ -43,7 +43,7 @@
         path: /var/lib/haproxy/stats
         state: directory
 
-    - name: compilation
+    - name: compilation haproxy
       shell: |
         cd /opt/haproxy-2.7.1
          make -j TARGET=linux-glibc USE_SYSTEMD=1 USE_PCRE=1 USE_OPENSSL=1 USE_THREAD=1
@@ -136,13 +136,19 @@
           #        mode tcp
           #        server server1 192.168.57.244:9000
 
-    - name: service-start1
+    - name: systemctl daemon-reload
       shell: |
         setsebool -P haproxy_connect_any 1
           systemctl daemon-reload
     
-    - name: systemctl start haproxy.service
+    - name: systemctl enable and start haproxy.service
       shell: |
         systemctl enable haproxy.service
         systemctl is-enabled haproxy.service
         systemctl start haproxy.service
+
+    - name: show status haproxy
+      command: systemctl status haproxy.service
+      register: out
+
+    - debug: var=out.stdout_lines
