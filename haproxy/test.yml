@@ -1,0 +1,18 @@
+- hosts: ha
+  become: yes
+  tasks:
+  - hosts: all
+  tasks:
+    - name: Run and see"
+      command: ls /
+      register: out
+
+    - debug: var=out.stdout_lines
+
+    - name: Check Ansible version
+      command: ansible --version
+      register: ansibleVersion
+
+    - name: Print version
+      debug:
+      msg: "Ansible Version: {{ ansibleVersion.stdout }}"

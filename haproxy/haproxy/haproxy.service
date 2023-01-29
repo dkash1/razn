@@ -1,0 +1,16 @@
+[Unit]
+Description=HAProxy Load Balancer
+After=syslog.target network.target pcsd.service
+Before=batch-master.service batch-auth_server.service
+ 
+[Service]
+Type=forking
+ExecStart=/usr/sbin/haproxy -f /etc/haproxy/haproxy_ccscheduler.cfg
+KillMode=mixed
+Restart=always
+RestartSec=10s
+LimitNOFILE=1000000
+LimitNPROC=1000000
+
+[Install]
+WantedBy=multi-user.target
