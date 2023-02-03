@@ -1,0 +1,182 @@
+- hosts: ha
+  become: yes
+  vars_files:
+    - vars.yml
+  tasks:
+    - name: Install programm
+      yum:
+        name: "{{ packages }}"
+      vars:
+        packages:
+        - gcc
+        - openssl-devel
+        - readline-devel
+        - systemd-devel
+        - make
+        - pcre-devel
+        - tar
+        - libselinux-python3
+
+    - name: Creates directory /opt/haproxy
+      file:
+        path: /opt/haproxy
+        state: directory
+
+    - name: Creates directory /etc/haproxy
+      file:
+        path: /etc/haproxy
+        state: directory
+
+    - name: Creates directory /var/lib/haproxy
+      file:
+        path: /var/lib/haproxy
+        state: directory
+
+    - name: Creates directory /var/lib/haproxy/stats
+      file:
+        path: /var/lib/haproxy/stats
+        state: directory
+
+    - name: Unpack arhive to /opt/haproxy
+      unarchive:
+        src: "{{ link }}"
+        dest: /opt/haproxy
+        mode: '0440'
+        extra_opts: --strip-components=1
+        remote_src: yes
+
+    - name: compilation haproxy
+      shell: |
+        cd /opt/haproxy
+         make -j TARGET=linux-glibc USE_SYSTEMD=1 USE_PCRE=1 USE_OPENSSL=1 USE_THREAD=1
+          make install
+
+    - name: Copy dir haproxy error
+      ansible.builtin.copy:
+       src: /opt/haproxy/examples/errorfiles
+       dest: /etc/haproxy/errorfiles
+       remote_src: yes
+
+    - name: Create a symbolic link
+      ansible.builtin.file:
+        src: /usr/local/sbin/haproxy
+        dest: /usr/sbin/haproxy
+        state: link
+
+    - name: Add user
+      ansible.builtin.user:
+        user: haproxy
+
+    - name: Create file haproxy.service
+      ansible.builtin.file:
+        path: /usr/lib/systemd/system/haproxy.service
+        state: touch
+    
+    - name: Create file haproxy.cfg
+      ansible.builtin.file:
+        path: /etc/haproxy/haproxy.cfg
+        state: touch
+    
+    - name: Change haproxy.service
+      ansible.builtin.copy:
+        dest: /usr/lib/systemd/system/haproxy.service
+        content: |
+          [Unit]
+          Description=HAProxy Load Balancer
+          After=syslog.target network.target pcsd.service
+          Before=batch-master.service batch-auth_server.service
+ 
+          [Service]
+          Type=forking
+          ExecStart=/usr/sbin/haproxy -f /etc/haproxy/haproxy.cfg
+          KillMode=mixed
+          Restart=always
+          RestartSec=10s
+          LimitNOFILE=1000000
+          LimitNPROC=1000000
+
+          [Install]
+          WantedBy=multi-user.target
+
+    - name: Setsebool haproxy_connect_any
+      command: setsebool -P haproxy_connect_any 1
+
+    - name: Systemctl daemon-reload
+      command: systemctl daemon-reload
+
+    - name: Change haproxy.cfg
+      ansible.builtin.copy:
+        dest: /etc/haproxy/haproxy.cfg
+        content: |
+          global
+          log /dev/log local0
+          log /dev/log local1 notice
+          maxconn 4096
+          tune.ssl.default-dh-param 2048
+          user haproxy
+          group haproxy
+          daemon
+
+
+          defaults
+          log global
+          mode  http
+          # option httplog
+          retries 3
+          option redispatch
+          option dontlognull
+          maxconn 2000
+          timeout connect 5000
+          timeout client 50000
+          timeout server 50000
+          default-server init-addr last,libc,none
+
+          frontend stats
+          bind *:8888
+          stats enable
+          stats uri /stats
+          stats refresh 30s
+          stats auth admin:admin
+
+          frontend out
+          mode tcp
+          bind :80
+          default_backend thelive
+
+          frontend in
+          mode tcp
+          bind :8080
+          default_backend stat
+
+          backend thelive
+          mode tcp
+          #server out1 127.0.0.1:9000 check
+
+          backend stat
+          mode tcp
+          #server in1 127.0.0.1:80 check
+
+    - name: Remove /opt/haproxy
+      ansible.builtin.file:
+        path: /opt/haproxy
+        state: absent
+
+    - name: Run haproxy.service
+      service:
+        name: haproxy.service
+        state: started
+        enabled: yes
+
+    - name: Show status haproxy
+      command: systemctl status haproxy.service
+      register: out
+
+    - debug: var=out.stdout_lines
+
+    
+
+  
+
+
+
+    
