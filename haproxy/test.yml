@@ -17,9 +17,25 @@
         - tar
         - libselinux-python3
 
+    - name: creates directory 
+      file:
+        path: /opt/haproxy
+        state: directory
+
     - name: unpack haproxy
       unarchive:
         src: "{{ link }}"
-        dest: /opt/
+        dest: /opt/haproxy
         mode: '0440'
+        extra_opts: --strip-components=1
         remote_src: yes
+
+    - name: Copy dir haproxy error
+      ansible.builtin.copy:
+       src: /opt/haproxy/examples/errorfiles
+       dest: /etc/haproxy/errorfiles
+       remote_src: yes
+    
+
+    
+    

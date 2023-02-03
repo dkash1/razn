@@ -1,5 +1,7 @@
 - hosts: ha
   become: yes
+  vars_files:
+    - vars.yml
   tasks:
     - name: Install programm
       yum:
@@ -15,17 +17,10 @@
         - tar
         - libselinux-python3
 
-    - name: get haproxy
-      get_url:
-        url: http://haproxy.org/download/2.7/src/haproxy-2.7.1.tar.gz
-        dest: /opt/
-        mode: '0440'
-
-    - name: unpack haproxy
-      unarchive:
-        src: '/opt/haproxy-2.7.1.tar.gz'
-        dest: /opt/
-        remote_src: yes
+    - name: Creates directory /opt/haproxy
+      file:
+        path: /opt/haproxy
+        state: directory
 
     - name: Creates directory /etc/haproxy
       file:
@@ -42,22 +37,33 @@
         path: /var/lib/haproxy/stats
         state: directory
 
+    - name: Unpack arhive to /opt/haproxy
+      unarchive:
+        src: "{{ link }}"
+        dest: /opt/haproxy
+        mode: '0440'
+        extra_opts: --strip-components=1
+        remote_src: yes
+
     - name: compilation haproxy
       shell: |
-        cd /opt/haproxy-2.7.1
+        cd /opt/haproxy
          make -j TARGET=linux-glibc USE_SYSTEMD=1 USE_PCRE=1 USE_OPENSSL=1 USE_THREAD=1
           make install
 
     - name: Copy dir haproxy error
       ansible.builtin.copy:
-       src: /opt/haproxy-2.7.1/examples/errorfiles
+       src: /opt/haproxy/examples/errorfiles
        dest: /etc/haproxy/errorfiles
        remote_src: yes
 
-    - name: add symbol link
-      command: ln -s /usr/local/sbin/haproxy /usr/sbin/haproxy
+    - name: Create a symbolic link
+      ansible.builtin.file:
+        src: /usr/local/sbin/haproxy
+        dest: /usr/sbin/haproxy
+        state: link
 
-    - name: add user
+    - name: Add user
       ansible.builtin.user:
         user: haproxy
 
@@ -66,12 +72,12 @@
         path: /usr/lib/systemd/system/haproxy.service
         state: touch
     
-    - name: Change file haproxy.cfg
+    - name: Create file haproxy.cfg
       ansible.builtin.file:
         path: /etc/haproxy/haproxy.cfg
         state: touch
     
-    - name: create haproxy.service
+    - name: Change haproxy.service
       ansible.builtin.copy:
         dest: /usr/lib/systemd/system/haproxy.service
         content: |
@@ -92,13 +98,13 @@
           [Install]
           WantedBy=multi-user.target
 
-    - name: setsebool haproxy_connect_any
+    - name: Setsebool haproxy_connect_any
       command: setsebool -P haproxy_connect_any 1
 
-    - name: systemctl daemon-reload
+    - name: Systemctl daemon-reload
       command: systemctl daemon-reload
 
-    - name: create haproxy.cfg
+    - name: Change haproxy.cfg
       ansible.builtin.copy:
         dest: /etc/haproxy/haproxy.cfg
         content: |
@@ -150,13 +156,18 @@
           mode tcp
           #server in1 127.0.0.1:80 check
 
-    - name: run haproxy.service
+    - name: Remove /opt/haproxy
+      ansible.builtin.file:
+        path: /opt/haproxy
+        state: absent
+
+    - name: Run haproxy.service
       service:
         name: haproxy.service
         state: started
         enabled: yes
 
-    - name: show status haproxy
+    - name: Show status haproxy
       command: systemctl status haproxy.service
       register: out
 
