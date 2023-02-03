@@ -14,7 +14,6 @@
         - pcre-devel
         - tar
         - libselinux-python3
-        - htop
 
     - name: get haproxy
       get_url:
@@ -145,11 +144,11 @@
 
           backend thelive
           mode tcp
-          server out1 127.0.0.1:9000 check
+          #server out1 127.0.0.1:9000 check
 
           backend stat
           mode tcp
-          server in1 127.0.0.1:80 check
+          #server in1 127.0.0.1:80 check
 
     - name: run haproxy.service
       service:

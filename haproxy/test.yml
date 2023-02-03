@@ -1,8 +1,25 @@
 - hosts: ha
   become: yes
+  vars_files:
+    - vars.yml
   tasks:
-    - name: Run and see"
-      command: systemctl status haproxy.service
-      register: out
+    - name: Install programm
+      yum:
+        name: "{{ packages }}"
+      vars:
+        packages:
+        - gcc
+        - openssl-devel
+        - readline-devel
+        - systemd-devel
+        - make
+        - pcre-devel
+        - tar
+        - libselinux-python3
 
-    - debug: var=out.stdout_lines
+    - name: unpack haproxy
+      unarchive:
+        src: "{{ link }}"
+        dest: /opt/
+        mode: '0440'
+        remote_src: yes
